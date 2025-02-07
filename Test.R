@@ -7,7 +7,7 @@
 
 #### Load Packages ####
 library(tidyverse) # load tidyverse package
-library(ggthemes) # contains colorblind friendly color palettes
+#library(ggthemes) # contains colorblind friendly color palettes
 
 #### Load Data ####
 fishdata <- read_csv("ltrm_fish_data.csv") # Read In Fish Data
