@@ -9,6 +9,7 @@
 library(tidyverse) # load tidyverse package
 #library(ggthemes) # contains colorblind friendly color palettes
 
+
 #### Load Data ####
 fishdata <- read_csv("ltrm_fish_data.csv") # Read In Fish Data
 glimpse(fishdata) # take a peek at the data
@@ -34,5 +35,8 @@ ggplot(data = lentic_annualsum,
        mapping = aes(x=year,y=TotCatch,color = stratum))+
   geom_point()+
   geom_smooth()+
-  ggtitle("Total Lentic Fish Catch by Year")
+  ggtitle("Total Lentic Fish Catch by Year")+
+  theme_bw()
+
+  
 
