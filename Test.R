@@ -34,5 +34,5 @@ ggplot(data = lentic_annualsum,
        mapping = aes(x=year,y=TotCatch,color = stratum))+
   geom_point()+
   geom_smooth()+
-  ggtitle("Total Catch by Year")
+  ggtitle("Total Lentic Fish Catch by Year")
 
