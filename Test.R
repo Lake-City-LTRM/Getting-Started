@@ -33,4 +33,6 @@ lentic_annualsum <- lentic %>%
 ggplot(data = lentic_annualsum,
        mapping = aes(x=year,y=TotCatch,color = stratum))+
   geom_point()+
-  geom_smooth()
+  geom_smooth()+
+  ggtitle("Total Catch by Year")
+
