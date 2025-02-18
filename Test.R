@@ -29,14 +29,43 @@ lentic_annualsum <- lentic %>%
   group_by(year,stratum) %>%      # group by year and strata
   summarise(TotCatch = sum(catch))# calculate total catch per strata each year
   
+# create table of annual total  fish catch by strata
+fishdata$sdate<-mdy(fishdata$sdate) #convert to date column type
+fishdata1 <- as.data.frame(fishdata)
+fishdata2 <- fishdata1[!(fishdata1$fishcode %in% c(NA)),]
+fishdata3 <- fishdata2[!(fishdata2$catch %in% c(NA)),]
+fishdata4<-fishdata3 %>% 
+  select(sdate,stratum,catch,fishcode) %>% 
+  filter(stratum=="MCB-U"|stratum=="SCB"|stratum=="BWC-S"|stratum=="BWC-O")
+
+tot_annualsum <- fishdata4 %>% 
+  mutate(year = year(sdate)) %>%  #create year column
+  group_by(year,stratum) %>%      # group by year and strata
+  summarise(TotCatch = sum(catch))# calculate total catch per strata each year
+
+tot_annualsum2 <- fishdata4 %>% 
+  mutate(year = year(sdate)) %>%  #create year column
+  group_by(year) %>%      # group by year and strata
+  summarise(TotCatch = sum(catch))# calculate total catch per strata each year
 
 #### Visualize Data ####
+ggplot(data = tot_annualsum,
+       mapping = aes(x=year,y=TotCatch,color = stratum))+
+  geom_point()+
+  geom_smooth()+
+  ggtitle("Total Fish Catch by Year and Stratum")+
+  theme_bw()
+ggplot(data = tot_annualsum2,
+       mapping = aes(x=year,y=TotCatch))+
+  geom_point()+
+  geom_smooth(method='lm')+
+  ggtitle("Total Fish Catch by Year")+
+  theme_bw()
+
 ggplot(data = lentic_annualsum,
        mapping = aes(x=year,y=TotCatch,color = stratum))+
   geom_point()+
   geom_smooth()+
   ggtitle("Total Lentic Fish Catch by Year")+
   theme_bw()
-
-  
 
