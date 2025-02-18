@@ -52,7 +52,7 @@ ggplot(data = lentic_annualsum,
        mapping = aes(x=year,y=AnnMeanMPUE,color = stratum))+
   geom_point()+
  # geom_errorbar(aes(ymin=(AnnMeanMPUE-Asd),ymax=(AnnMeanMPUE+Asd)))+
-  geom_smooth()+
+  geom_smooth(method = "lm")+
   ggtitle("Annual Average MPUE (15 min e) by Year and Stratum")+
   theme_bw()
 # create table of annual total  fish catch by strata
