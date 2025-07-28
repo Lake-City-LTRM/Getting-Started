@@ -57,7 +57,7 @@ summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
 LTRM_n_spp<-summarySE(LTRM_bm2, measurevar="loglength", groupvars=("fishcode"))
 #based on weight data available, no additional species can be updated within the life history database
 
-#estimate ordinary least square regression coefficients for CNCF - improved 
+# estimate ordinary least square regression coefficients for CNCF - improved 
 # estimates - is it worth updating the life history database?
 LTRM_CNCF<-LTRM_bm2 [which(LTRM_bm2$fishcode=="CNCF"), ]
 lmodel <- lm(logweight ~ loglength, data = LTRM_CNCF)

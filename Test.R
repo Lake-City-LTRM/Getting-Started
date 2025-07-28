@@ -9,6 +9,8 @@ install.packages("splitstackshape")
 library(tidyverse) # load tidyverse package
 #library(ggthemes) # contains colorblind friendly color palettes
 library(splitstackshape)
+library(plyr)
+library(dplyr)
 
 #### Load Data ####
 fishdata <- read_csv("ltrm_fish_data.csv") # Read In Fish Data
@@ -22,6 +24,8 @@ fishdata1 <- as.data.frame(fishdata)
 fishdata2 <- fishdata1[!(fishdata1$fishcode %in% c(NA)),]
 fishdata3 <- fishdata2[!(fishdata2$catch %in% c(NA)),]
 
+
+
 # create table of annual Mass per unit effort efishing lentic fish catch by strata
 # create data table of just lentic fish, as listed in Status and Trends 2022
 lentic <- filter(fishdata3,fishcode=="LMBS"|fishcode == "BLGL"|fishcode=="BWFN"|
@@ -29,26 +33,150 @@ lentic <- filter(fishdata3,fishcode=="LMBS"|fishcode == "BLGL"|fishcode=="BWFN"|
                    fishcode=="LNGR"|fishcode=="WTCP"|fishcode=="YWPH"|
                    fishcode=="GDSN"|fishcode=="STGR"|fishcode=="GNSF"|
                    fishcode=="PNSD"|fishcode=="OSSF") 
-lentic2<-lentic[!(lentic$period==1),]
-lentic3<-lentic2[!(lentic2$period==4),]
-#subset master databse variables
-lentic3p5 <- lentic3 %>% 
-  select(barcode,fstation,sitetype,stratum,sdate,pool,gear,summary,effmin,
-         fishcode,length,catch,weight)
+## first try w/o removing periods...
+#lentic2<-lentic[!(lentic$period==1),] ######################### why did I remove period 1??
+#lentic3<-lentic2[!(lentic2$period==4),] ######################## what is period 4? seems good to remove
 
-lentic4<-lentic3 %>% 
+#remove fish with weight <=0 (1/5 of data)
+LTRM_bm<-lentic [which(weight>0), ]
+#subset master databse variables
+LTRM_bm2 <- LTRM_bm[,c(3, 6, 73, 74, 78)]
+
+#add log length
+LTRM_bm2$loglength <- log10( LTRM_bm2$length)
+#add log weight
+LTRM_bm2$logweight <- log10(LTRM_bm2$weight)
+
+#summarize
+summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
+                      conf.interval=.95, .drop=TRUE) {
+  library(plyr)
+  
+  
+  # New version of length which can handle NA's: if na.rm==T, don't count them
+  length2 <- function (x, na.rm=FALSE) {
+    if (na.rm) sum(!is.na(x))
+    else       length(x)
+  }
+  
+  # This does the summary. For each group's data frame, return a vector with
+  # N, mean, and sd
+  datac <- ddply(data, groupvars, .drop=.drop,
+                 .fun = function(xx, col) {
+                   c(N    = length2(xx[[col]], na.rm=na.rm),
+                     mean = mean   (xx[[col]], na.rm=na.rm),
+                     sd   = sd     (xx[[col]], na.rm=na.rm)
+                   )
+                 },
+                 measurevar
+  )
+  
+  # Rename the "mean" column    
+  datac <- rename(datac, c("mean" = measurevar))
+  
+  datac$se <- datac$sd / sqrt(datac$N)  # Calculate standard error of the mean
+  
+  # Confidence interval multiplier for standard error
+  # Calculate t-statistic for confidence interval: 
+  # e.g., if conf.interval is .95, use .975 (above/below), and use df=N-1
+  ciMult <- qt(conf.interval/2 + .5, datac$N-1)
+  datac$ci <- datac$se * ciMult
+  
+  return(datac)
+}
+LTRM_n_spp<-summarySE(LTRM_bm2, measurevar="loglength", groupvars=("fishcode"))
+#based on weight data available, no additional species can be updated within the life history database
+
+#estimate ordinary least square regression coefficients for LMBS (CHANGED FROM BOUSKA CNCF) 
+# estimates - is it worth updating the life history database?
+LTRM_LMBS<-LTRM_bm2 [which(LTRM_bm2$fishcode=="LMBS"), ]
+lmodel <- lm(logweight ~ loglength, data = LTRM_LMBS)
+lmodel$coefficients
+
+plot(LTRM_LMBS$logweight~LTRM_LMBS$loglength)
+plot(LTRM_LMBS$weight~LTRM_LMBS$length)
+
+
+lentic4<-lentic %>% 
   filter(stratum=="MCB-U"|stratum=="SCB"|stratum=="BWC-S") %>% 
   mutate(stratum = if_else(stratum=="SCB","SC",stratum)) %>% 
   filter(gear=="D") %>%  ## only day electrofishing
   mutate(stratum = if_else(stratum =="MCB-U"& gear=="D","MCB-S",stratum))   # from https://www.umesc.usgs.gov/ltrmp/stats/code/sampling_weights_BLGL_day.sas
 
-lentic5<-lentic4 %>%  
- select(sdate,barcode,stratum,effmin,fishcode,catch, weight)%>% 
-  filter(catch>0)
-lentic6<-expandRows(lentic5,"catch")
+#lentic5<-lentic4 %>%  
+# select(sdate,barcode,stratum,effmin,fishcode,catch, weight)%>% 
+#  filter(catch>0) ## maybe don't want to filter to catch > 0 because zeros matter to summary metrics?
+#lentic6<-expandRows(lentic4,"catch")
 
+#expand rows
+LTRM2<-filter(lentic4,catch>0) ## from Bouska code -- ask her about removing these zeros (sites not sampled and then alt chosen?)
+LTRM2<-expandRows (LTRM2, "catch")
+## from bouska code "length_weight approximations.R"
+LTRM2$sdate <-as.Date(LTRM2$sdate, '%m/%d/%Y')
+LTRM2$year<-format(LTRM2$sdate,"%Y")
+LTRM2<-LTRM2 [which(LTRM2$year>1992), ]
+
+#add log length
+LTRM2$loglength <- log10( LTRM2$length)
+#subset master database variables
+LTRM3 <- LTRM2[,c(2,3,5, 6,19, 73, 74, 76, 77,86)]
+
+#query electrofishing data
+LTRM1<-LTRM [which(gear=="D"), ]
+#query for SRS data
+LTRM1$sdate <-as.Date(LTRM1$sdate, '%m/%d/%Y')
+LTRM1$year<-format(LTRM1$sdate,"%Y")
+LTRM2<-LTRM1 [which(LTRM1$year>1992), ]
+#expand rows
 LTRM2<-filter(LTRM2,catch>0)
 LTRM2<-expandRows (LTRM2, "catch")
+#add log length
+LTRM2$loglength <- log10( LTRM2$length)
+#subset master database variables
+LTRM3 <- LTRM2[,c(2,3,5, 6,19, 73, 74, 77, 78,87)]
+
+#next steps
+#load lw equation data
+LW =LTRM_n_spp
+#load lw equation data
+
+## START HERE NICOLE from 28 July 2025
+LW =read.delim2(file="lifehistory_growth.txt", header=TRUE, sep=",")### NEED TO GET THIS!!!! from lmodel above, for each species!!!!
+#rename Fishcode to fishcode in LW
+colnames(LW)[colnames(LW)=="Fishcode"] <- "fishcode"
+#join by fishcode
+library(dplyr)
+LTRM4<-inner_join(LTRM3, LW, by = c("fishcode" = "fishcode"))
+#subset database variables
+LTRM4 <- LTRM4[,c(1,2,3,4,5, 6, 7,8, 9,10,11, 12)]
+#change factors to numeric
+str(LTRM4)
+LTRM4$LW.Intercept<-as.numeric(as.character(LTRM4$LW.Intercept))
+LTRM4$LW.Slope<-as.numeric(as.character(LTRM4$LW.Slope))
+#calculate biomass per record
+LTRM4$est_logwt <- LTRM4$LW.Intercept + (LTRM4$LW.Slope*LTRM4$loglength)
+LTRM4$est_wt<-(10^LTRM4$est_logwt)
+
+
+#compare weights vs. est.wts (tend to overestimate little fish and underestimate big fish)
+LTRM5 <-LTRM4 [which(LTRM4$weight>0), ]
+LTRM5$wt_diff<-LTRM5$weight - LTRM5$est_wt
+plot(LTRM5$wt_diff~LTRM5$weight)
+hist(LTRM5$weight)
+
+#estimate biomass by multiplying catch*est_wt
+LTRM4$bm<-LTRM4$est_wt*LTRM4$catch
+#correct for effort
+LTRM4 <- within (LTRM4, effmin[effmin==0] <- 15)
+LTRM4$mpue<-LTRM4$bm*(15/LTRM4$effmin)
+#summarize by barcode - total biomass by species (mpue)
+LTRM_bm_sum<- LTRM2 %>%
+  group_by(barcode, fishcode) %>%
+  summarise (bm_sum = sum(mpue, na.rm = TRUE))
+#sum mpue by stata, fstation, year (to calculate mean mpue per strata) FROM BOUSKA
+LTRM_bm_srs_strata<-LTRM2 %>%
+  group_by(stratum, year, fstation, fishcode) %>%
+  summarize(sum.mpue = sum(bm_sum, na.rm = TRUE))
  
   mutate(mass = as.numeric(weight)) %>% 
   filter(!is.na(mass)) %>% 
