@@ -1,4 +1,9 @@
 
+
+
+# note to nicole from nicole: scroll down to where it says "START HERE"
+
+
 # see R tidy text book: https://r4ds.hadley.nz/whole-game
 
 #### install packages ####
